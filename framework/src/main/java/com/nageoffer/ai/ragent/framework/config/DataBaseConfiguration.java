@@ -40,7 +40,9 @@ public class DataBaseConfiguration {
      */
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        // 创建 MyBatis-Plus 总拦截器
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        // 添加分页拦截器，DbType.MYSQL 表示数据库类型为 MySQL
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }

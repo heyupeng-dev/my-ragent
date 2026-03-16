@@ -52,9 +52,9 @@ public class ChatRequest {
     /**
      * 完整消息列表
      * <p>
-     * 用于直接传入 system/user/assistant 消息序列。
-     * 当 messages 非空时，适配层使用该字段构造请求；
-     * prompt 会作为额外的 user 消息追加。
+     * 用于直接传入 system/user/assistant 消息序列
+     * 当 messages 非空时，适配层使用该字段构造请求
+     * prompt 会作为额外的 user 消息追加
      * </p>
      */
     @Default
@@ -84,8 +84,8 @@ public class ChatRequest {
     /**
      * Top-K 采样参数
      * <p>
-     * 表示每一步只从概率最高的 K 个 token 中采样，常与 {@link #temperature}
-     * 或 {@link #topP} 搭配使用。K 越小越保守，K 越大越发散
+     * 表示每一步只从概率最高的 K 个 token 中采样，常与 {@link #temperature} 或 {@link #topP} 搭配使用
+     * K 越小越保守，K 越大越发散
      * 若为 {@code null} 则使用模型默认值
      * </p>
      */
