@@ -27,7 +27,7 @@ package com.nageoffer.ai.ragent.framework.errorcode;
  *   <li>B 类错误：系统执行错误（Service Error）</li>
  *   <li>C 类错误：第三方服务错误（Remote Error）</li>
  * </ul>
- * 通过组件包统一定义基础错误码，避免各服务重复定义相同内容。
+ * 通过组件包统一定义基础错误码，避免各服务重复定义相同内容
  * </p>
  */
 public enum BaseErrorCode implements IErrorCode {

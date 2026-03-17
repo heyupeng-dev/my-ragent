@@ -24,6 +24,7 @@ import java.lang.annotation.Target;
 
 /**
  * 幂等注解，防止消息队列消费者重复消费消息
+ * 该注解只能用于方法上，指定在运行时生效
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

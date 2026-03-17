@@ -49,34 +49,44 @@ public final class IdempotentSubmitAspect {
     private final Gson gson = new Gson();
 
     /**
-     * 增强方法标记 {@link IdempotentSubmit} 注解逻辑
+     * 对所有标注了 {@link IdempotentSubmit} 注解的方法进行环绕增强
+     * 在执行目标方法前后增加防重复提交控制
      */
     @Around("@annotation(com.nageoffer.ai.ragent.framework.idempotent.IdempotentSubmit)")
     public Object idempotentSubmit(ProceedingJoinPoint joinPoint) throws Throwable {
+        // 获取当前被拦截方法上的 IdempotentSubmit 注解实例
         IdempotentSubmit idempotentSubmit = getIdempotentSubmitAnnotation(joinPoint);
-        // 获取分布式锁标识
+        // 根据当前请求和注解配置构建分布式锁的 key
         String lockKey = buildLockKey(joinPoint, idempotentSubmit);
         RLock lock = redissonClient.getLock(lockKey);
-        // 尝试获取锁，获取锁失败就意味着已经重复提交，直接抛出异常
+        // 如果当前线程没有成功拿到锁，说明同一请求正在处理中或刚刚提交过
         if (!lock.tryLock()) {
+            // 抛出客户端异常，提示用户不要重复提交
             throw new ClientException(idempotentSubmit.message());
         }
+
         Object result;
         try {
-            // 执行标记了防重复提交注解的方法原逻辑
+            // 执行原始业务方法
             result = joinPoint.proceed();
         } finally {
+            // 释放当前分布式锁
             lock.unlock();
         }
+        // 返回原始业务方法执行结果
         return result;
     }
 
     /**
+     * 获取目标方法上的 IdempotentSubmit 注解
      * @return 返回自定义防重复提交注解
      */
     public static IdempotentSubmit getIdempotentSubmitAnnotation(ProceedingJoinPoint joinPoint) throws NoSuchMethodException {
+        // 将通用签名转换为方法签名
         MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
+        // 通过目标对象的实际类型、方法名和参数类型反射获取目标方法
         Method targetMethod = joinPoint.getTarget().getClass().getDeclaredMethod(methodSignature.getName(), methodSignature.getMethod().getParameterTypes());
+        // 返回目标方法上的 IdempotentSubmit 注解
         return targetMethod.getAnnotation(IdempotentSubmit.class);
     }
 
@@ -84,7 +94,9 @@ public final class IdempotentSubmitAspect {
      * @return 获取当前线程上下文 ServletPath
      */
     private String getServletPath() {
+        // 从 Spring 请求上下文中取出当前线程绑定的请求属性
         ServletRequestAttributes sra = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        // 返回当前请求的 ServletPath，如果请求为空则抛出空指针异常
         return Objects.requireNonNull(sra).getRequest().getServletPath();
     }
 
@@ -92,26 +104,41 @@ public final class IdempotentSubmitAspect {
      * @return 当前操作用户 ID
      */
     private String getCurrentUserId() {
+        // 从用户上下文中读取当前用户 ID
         return UserContext.getUserId();
     }
 
     /**
-     * @return joinPoint md5
+     * @return 计算当前方法参数的 MD5 值
      */
     private String calcArgsMD5(ProceedingJoinPoint joinPoint) {
+        // 将参数序列化为 JSON，再按 UTF-8 编码后计算 MD5
         return DigestUtil.md5Hex(gson.toJson(joinPoint.getArgs()).getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * 构建分布式锁的唯一 key
+     */
     private String buildLockKey(ProceedingJoinPoint joinPoint, IdempotentSubmit idempotentSubmit) {
+        // 如果注解中显式配置了 key，则优先使用自定义 key 逻辑
         if (StrUtil.isNotBlank(idempotentSubmit.key())) {
+            // 获取当前方法签名
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+            // 使用 SpEL 表达式从方法参数中解析出动态 key 值
             Object keyValue = SpELUtil.parseKey(idempotentSubmit.key(), signature.getMethod(), joinPoint.getArgs());
+            // 返回基于注解 key 构建的锁标识
             return String.format("idempotent-submit:key:%s", keyValue);
         }
+
+        // 如果没有配置自定义 key，则根据请求路径、用户 ID 和参数摘要拼接默认锁 key
         return String.format(
+                // 默认锁 key 模板，确保同一路径、同一用户、同一参数的请求会命中同一把锁
                 "idempotent-submit:path:%s:currentUserId:%s:md5:%s",
+                // 填充当前请求路径
                 getServletPath(),
+                // 填充当前用户 ID
                 getCurrentUserId(),
+                // 填充参数 MD5 摘要
                 calcArgsMD5(joinPoint)
         );
     }

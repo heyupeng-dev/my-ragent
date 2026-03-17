@@ -34,40 +34,54 @@ import java.util.Optional;
  */
 public final class SpELUtil {
 
+    // 定义静态参数名发现器
     private static final DefaultParameterNameDiscoverer PARAMETER_NAME_DISCOVERER = new DefaultParameterNameDiscoverer();
+    // 定义静态 SpEL 解析器，负责将字符串表达式解析成可执行表达式
     private static final ExpressionParser EXPRESSION_PARSER = new SpelExpressionParser();
 
     /**
-     * 校验并返回实际使用的 spEL 表达式
+     * 校验并返回实际使用的 SpEL 表达式
      *
-     * @param spEl spEL 表达式
-     * @return 实际使用的 spEL 表达式
+     * @param SpEl SpEL 表达式
+     * @return 实际使用的 SpEL 表达式
      */
-    public static Object parseKey(String spEl, Method method, Object[] contextObj) {
+    public static Object parseKey(String SpEl, Method method, Object[] contextObj) {
+        // 定义判断表达式特征的标记：变量引用 # 和类型引用 T(
         List<String> spELFlag = ListUtil.of("#", "T(");
-        Optional<String> optional = spELFlag.stream().filter(spEl::contains).findFirst();
+        // 判断 SpEl 表达式中是否包含任意 SpEL 标记
+        Optional<String> optional = spELFlag.stream().filter(flag -> SpEl.contains(flag)).findFirst();
+        // 如果包含 SpEL 标记，则进入解析流程
         if (optional.isPresent()) {
-            return parse(spEl, method, contextObj);
+            return parse(SpEl, method, contextObj);
         }
-        return spEl;
+        // 否则直接返回原字符串
+        return SpEl;
     }
 
     /**
      * 转换参数为字符串
      *
-     * @param spEl       spEl 表达式
+     * @param SpEl       SpEl 表达式
      * @param contextObj 上下文对象
      * @return 解析的字符串值
      */
-    public static Object parse(String spEl, Method method, Object[] contextObj) {
-        Expression exp = EXPRESSION_PARSER.parseExpression(spEl);
+    public static Object parse(String SpEl, Method method, Object[] contextObj) {
+        // 将字符串表达式解析为可执行的 Expression 对象
+        Expression exp = EXPRESSION_PARSER.parseExpression(SpEl);
+        // 获取方法参数名数组，用于后续绑定变量
         String[] params = PARAMETER_NAME_DISCOVERER.getParameterNames(method);
+        // 创建标准求值上下文，承载表达式变量
         StandardEvaluationContext context = new StandardEvaluationContext();
+
+        // 如果参数名数组非空，则逐个绑定“参数名 -> 参数值”
         if (ArrayUtil.isNotEmpty(params)) {
+            // 遍历所有参数名并建立上下文变量映射
             for (int len = 0; len < params.length; len++) {
+                // 将当前参数名及对应实参值放入 SpEL 上下文
                 context.setVariable(params[len], contextObj[len]);
             }
         }
+        // 在上下文中执行表达式求值并返回结果
         return exp.getValue(context);
     }
 }

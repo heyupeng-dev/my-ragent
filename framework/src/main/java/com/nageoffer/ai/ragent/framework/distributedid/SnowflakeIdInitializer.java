@@ -46,9 +46,11 @@ public class SnowflakeIdInitializer {
     @SuppressWarnings({"rawtypes", "unchecked"})
     @PostConstruct
     public void init() {
-        // 加载Lua脚本
+        // 创建 Redis 脚本对象
         DefaultRedisScript<List> script = new DefaultRedisScript<>();
+        // 从指定路径加载 Lua 脚本
         script.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/snowflake_init.lua")));
+        // 设置返回结果类型为 List
         script.setResultType(List.class);
 
         try {
@@ -62,7 +64,7 @@ public class SnowflakeIdInitializer {
             Long workerId = result.get(0);
             Long datacenterId = result.get(1);
 
-            // 注册到 Hutool 的 IdUtil
+            // 注册 Snowflake 到全局单例池，后续 IdUtil.getSnowflakeNextId() 会复用该实例生成 ID
             Snowflake snowflake = new Snowflake(workerId, datacenterId);
             Singleton.put(snowflake);
 
